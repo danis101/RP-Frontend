@@ -5,6 +5,7 @@ import { useSettings, defaultAiProfile } from '../../context/SettingsContext'
 import type { ModelInfo } from '../../services/api'
 import { OpenAIAdapter } from '../../services/api'
 import type { ApiProfile } from '../../types'
+import { defaultReasoningEffort, type ReasoningEffort } from '../../../../shared/llm/modelOptions'
 
 const statusColor: Record<ModelInfo['status'], string> = {
   loaded: 'text-[#34c759]',
@@ -196,6 +197,25 @@ export default function AIModelsView() {
                 {t('settingsActiveModel')}: <span className="font-medium text-[#b8bdd0]">{activeProfile.model}</span>
               </p>
             )}
+          </div>
+
+          <div className="rounded-xl border border-edge bg-surface p-4">
+            <label className="mb-2 block text-[12.5px] font-medium text-[#f2f2f4]" htmlFor="ai-reasoning-effort">
+              {t('aiReasoningEffort')}
+            </label>
+            <select
+              id="ai-reasoning-effort"
+              value={activeProfile.reasoningEffort ?? defaultReasoningEffort(activeProfile.model)}
+              onChange={(event) => updateActive({ reasoningEffort: event.target.value as ReasoningEffort })}
+              className="w-full rounded-lg border border-[#2a2a31] bg-surface-dark px-3 py-2 text-[13px] text-[#e8e8eb] outline-none focus:border-accent"
+            >
+              <option value="default">{t('aiReasoningDefault')}</option>
+              <option value="none">{t('aiReasoningOff')}</option>
+              <option value="low">{t('aiReasoningLow')}</option>
+              <option value="medium">{t('aiReasoningMedium')}</option>
+              <option value="high">{t('aiReasoningHigh')}</option>
+            </select>
+            <p className="mt-2 text-[11px] text-[#6a6a72]">{t('aiReasoningHint')}</p>
           </div>
 
           {/* Sampler */}

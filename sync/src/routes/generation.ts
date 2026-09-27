@@ -4,6 +4,7 @@ import { authMiddleware, type AppEnv } from '../auth'
 import { db } from '../db'
 import { generationRunner, generationStore, openModelResponse, createSearchWorkflow, createImageExecution, startSummary, type SearchSettings } from '../generation/service'
 import { validModelMessage } from '../../../shared/llm/messages'
+import { modelOptions } from '../../../shared/llm/modelOptions'
 import { webSearchDeclaration } from '../../../shared/llm/webSearch'
 import { imageDeclaration, type ImageInput } from '../../../shared/llm/imageTypes'
 import { JobError, publicJob, type StartJob } from '../generation/store'
@@ -76,7 +77,7 @@ generationRoutes.post('/', async c => {
     if (request.operation !== 'image' && (!profile || typeof profile.baseUrl !== 'string' || !profile.baseUrl.trim() || typeof profile.model !== 'string' || !profile.model.trim())) {
       return c.json({ error: 'Zapisany profil API nie jest skonfigurowany.' }, 400)
     }
-    const payload: Record<string, unknown> = { model: profile?.model, messages: request.messages, stream: true }
+    const payload: Record<string, unknown> = { model: profile?.model, messages: request.messages, stream: true, ...modelOptions(profile?.model ?? '', profile?.reasoningEffort) }
     if (image && image.prompt === undefined && settings?.imageGenEnabled !== true) throw new JobError('Generowanie obrazow jest wylaczone.', 400)
     const imageExecution = image ? createImageExecution(userId, image, settings ?? {}) : undefined
     let searchSettings: SearchSettings | undefined

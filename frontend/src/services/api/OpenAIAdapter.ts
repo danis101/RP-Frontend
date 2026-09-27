@@ -3,11 +3,13 @@ import type { ApiProfile, APIToolCall } from '../../types'
 import { getToken } from '../sync/client'
 import { ReasoningParser, readReasoning } from '../../../../shared/llm/reasoning'
 import { readCompletionStream } from '../../../../shared/llm/stream'
+import { modelOptions } from '../../../../shared/llm/modelOptions'
 
 export interface OpenAIConfig {
   baseUrl: string
   apiKey: string
   model: string
+  reasoningEffort?: ApiProfile['reasoningEffort']
   sampler?: ApiProfile['sampler']
   maxTokens?: number
   streamingEnabled?: boolean
@@ -125,6 +127,7 @@ export class OpenAIAdapter implements ApiAdapter {
       messages: params.messages as unknown as OpenAIMessage[],
       stream: false,
       ...this.samplerBody(),
+      ...modelOptions(model, this.config.reasoningEffort),
     }
 
     if (params.tools?.length) {
@@ -197,6 +200,7 @@ export class OpenAIAdapter implements ApiAdapter {
       messages: params.messages as unknown as OpenAIMessage[],
       stream: true,
       ...this.samplerBody(),
+      ...modelOptions(model, this.config.reasoningEffort),
     }
 
     if (params.tools?.length) {

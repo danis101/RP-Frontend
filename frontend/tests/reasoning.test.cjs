@@ -100,3 +100,29 @@ test('nonstream tool calls retain their arguments and reasoning', async t => {
   assert.deepEqual(JSON.parse(result), { content: '', tool_calls: calls })
   assert.equal(thinking, 'Draft')
 })
+
+test('profile reasoning setting reaches both adapter paths, with JoyFox default off', async t => {
+  const bodies = []
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const body = JSON.parse(init.body)
+    bodies.push(body)
+    return body.stream
+      ? new Response('data: {"choices":[{"delta":{"content":"Answer"}}]}\n\ndata: [DONE]\n\n')
+      : Response.json({ choices: [{ message: { content: 'Answer' } }] })
+  })
+  const joyfox = new OpenAIAdapter({ ...config, model: 'joyfox/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive-Q5_K_M.gguf' })
+  assert.equal(await joyfox.sendMessage(params), 'Answer')
+  await joyfox.streamMessage(params, { onToken: () => {}, onDone: () => {}, onError: error => { throw error } })
+  assert.deepEqual(bodies.map(body => body.reasoning_effort), ['none', 'none'])
+
+  await joyfox.sendMessage({ ...params, model: 'another-model' })
+  assert.equal(Object.hasOwn(bodies[2], 'reasoning_effort'), false)
+
+  const configured = new OpenAIAdapter({ ...config, reasoningEffort: 'high' })
+  await configured.sendMessage(params)
+  assert.equal(bodies[3].reasoning_effort, 'high')
+
+  const serverDefault = new OpenAIAdapter({ ...config, model: 'JoyFox-Qwen3.6-35B-A3B-RP-Aggressive', reasoningEffort: 'default' })
+  await serverDefault.sendMessage(params)
+  assert.equal(Object.hasOwn(bodies[4], 'reasoning_effort'), false)
+})

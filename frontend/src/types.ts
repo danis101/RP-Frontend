@@ -1,3 +1,5 @@
+import type { ReasoningEffort } from '../../shared/llm/modelOptions'
+
 /** Wpis lorebooka/world info - zgodny ze ST i TAVO. */
 export interface LorebookEntry {
   id: string
@@ -114,6 +116,7 @@ export interface ApiProfile {
   baseUrl: string
   apiKey: string
   model: string
+  reasoningEffort?: ReasoningEffort
   sampler: SamplerParams
   maxTokens: number
   contextLength: number

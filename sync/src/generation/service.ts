@@ -12,6 +12,7 @@ import { parseSearchResults } from '../../../shared/llm/webSearch'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createImageGenerator } from '../../../shared/llm/imageGen'
 import { ReasoningParser, readReasoning } from '../../../shared/llm/reasoning'
+import { modelOptions } from '../../../shared/llm/modelOptions'
 import type { ImageInput, ImageToolCall } from '../../../shared/llm/imageTypes'
 import { runImage } from './imageWorkflow'
 import type { WorkflowProgress } from './runner'
@@ -86,7 +87,7 @@ export function startSummary(userId: string, conversationId: string, profileId: 
   const model = settings.summarizerModel?.trim() || profile?.model
   if (!profile?.baseUrl?.trim() || !model) throw new JobError('Brak skonfigurowanego modelu podsumowania.', 400)
   const baseUrl = profile.baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/, '')
-  const body: Record<string, unknown> = { model, messages, stream: true }
+  const body: Record<string, unknown> = { model, messages, stream: true, ...modelOptions(model, profile.reasoningEffort) }
   for (const [key, wireKey] of Object.entries({ temperature: 'temperature', topP: 'top_p', topK: 'top_k', frequencyPenalty: 'frequency_penalty', presencePenalty: 'presence_penalty' })) {
     if (typeof profile.sampler?.[key] === 'number') body[wireKey] = profile.sampler[key]
   }
@@ -157,7 +158,7 @@ export type ImageExecution = (signal: AbortSignal, report: (state: WorkflowProgr
 
 export function createImageExecution(userId: string, input: ImageInput, settings: any): { execute: ImageExecution; snapshot: unknown } {
   const profile = settings.aiProfiles?.find((p: any) => p.id === input.refinerProfileId)
-  const refinerBody: Record<string, unknown> = { model: profile?.model, messages: input.refinerMessages, stream: false }
+  const refinerBody: Record<string, unknown> = { model: profile?.model, messages: input.refinerMessages, stream: false, ...modelOptions(profile?.model ?? '', profile?.reasoningEffort) }
   // Match the existing adapter: sampler from the refiner profile, no tools.
   for (const [key, wireKey] of Object.entries({ temperature: 'temperature', topP: 'top_p', topK: 'top_k', frequencyPenalty: 'frequency_penalty', presencePenalty: 'presence_penalty' })) {
     if (typeof profile?.sampler?.[key] === 'number') refinerBody[wireKey] = profile.sampler[key]
