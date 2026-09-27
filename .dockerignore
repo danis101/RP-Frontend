@@ -15,7 +15,9 @@ frontend/dist
 
 # Dane runtime i sekrety
 data/
+data.bak/
 .env
+.env.bak
 
 # Git i inne smieci
 .git

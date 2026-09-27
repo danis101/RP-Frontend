@@ -1,8 +1,13 @@
 # Dane runtime (baza + bloby) — nie wrzucamy na GitHuba
 data/
+data.bak/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 # Konfiguracja lokalna z sekretami
 .env
+.env.bak
 
 # Node
 node_modules/
