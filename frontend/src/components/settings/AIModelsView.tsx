@@ -230,45 +230,55 @@ export default function AIModelsView() {
 
             {samplerOpen && (
               <div className="space-y-3 border-t border-edge p-4">
-                <NumberField
+                <SliderField
+                  key={`${activeProfile.id}-temperature`}
                   label="Temperature"
                   value={activeProfile.sampler.temperature}
+                  fallback={0.7}
                   onChange={(v) => updateSampler({ temperature: v })}
-                  min={0}
-                  max={2}
-                  step={0.1}
+                  min={0.45}
+                  max={1.65}
+                  step={0.01}
                 />
-                <NumberField
+                <SliderField
+                  key={`${activeProfile.id}-top-p`}
                   label="Top P"
                   value={activeProfile.sampler.topP}
+                  fallback={0.95}
                   onChange={(v) => updateSampler({ topP: v })}
-                  min={0}
+                  min={0.63}
                   max={1}
-                  step={0.05}
+                  step={0.01}
                 />
-                <NumberField
+                <SliderField
+                  key={`${activeProfile.id}-top-k`}
                   label="Top K"
                   value={activeProfile.sampler.topK}
+                  fallback={40}
                   onChange={(v) => updateSampler({ topK: v })}
                   min={0}
-                  max={200}
+                  max={110}
                   step={1}
                 />
-                <NumberField
+                <SliderField
+                  key={`${activeProfile.id}-frequency-penalty`}
                   label="Frequency penalty"
                   value={activeProfile.sampler.frequencyPenalty}
+                  fallback={0}
                   onChange={(v) => updateSampler({ frequencyPenalty: v })}
-                  min={-2}
-                  max={2}
-                  step={0.1}
+                  min={-0.55}
+                  max={1.65}
+                  step={0.01}
                 />
-                <NumberField
+                <SliderField
+                  key={`${activeProfile.id}-presence-penalty`}
                   label="Presence penalty"
                   value={activeProfile.sampler.presencePenalty}
+                  fallback={0}
                   onChange={(v) => updateSampler({ presencePenalty: v })}
-                  min={-2}
-                  max={2}
-                  step={0.1}
+                  min={-0.55}
+                  max={1.65}
+                  step={0.01}
                 />
               </div>
             )}
@@ -473,6 +483,54 @@ function SettingsField({
         />
         {right && <div className="absolute right-2 top-1/2 -translate-y-1/2">{right}</div>}
       </div>
+    </label>
+  )
+}
+
+function SliderField({
+  label,
+  value,
+  fallback,
+  onChange,
+  min,
+  max,
+  step,
+}: {
+  label: string
+  value?: number
+  fallback: number
+  onChange: (v: number) => void
+  min: number
+  max: number
+  step: number
+}) {
+  const current = value ?? fallback
+  // Existing profiles may contain values outside the new suggested range.
+  // Fix the bounds for this profile so the track does not shift while dragging.
+  const [range] = useState(() => ({ min: Math.min(min, current), max: Math.max(max, current) }))
+  const display = (number: number) => step === 1 ? String(number) : number.toFixed(2)
+
+  return (
+    <label className="block">
+      <span className="mb-1 flex items-center justify-between gap-3 text-[11px] font-medium text-[#8a8a94]">
+        <span>{label}</span>
+        <output className="min-w-12 rounded-md border border-[#2a2a31] bg-surface-dark px-2 py-1 text-right font-mono text-[12px] text-[#e8e8eb]">
+          {display(current)}
+        </output>
+      </span>
+      <input
+        type="range"
+        value={current}
+        onChange={(event) => onChange(Number(event.target.value))}
+        min={range.min}
+        max={range.max}
+        step={step}
+        className="w-full cursor-pointer accent-accent"
+      />
+      <span className="mt-1 flex justify-between text-[10px] text-[#6a6a72]">
+        <span>{display(range.min)}</span>
+        <span>{display(range.max)}</span>
+      </span>
     </label>
   )
 }
