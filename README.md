@@ -90,7 +90,7 @@ Optional environment variables (sensible defaults built in; set only if you need
 
 | Variable ↕▾ | Default ↕▾ | Purpose ↕▾ |
 |---|---|---|
-| `PROXY_ALLOWED_HOSTS` | *(empty)* | Comma-separated hosts allowed as integration proxy targets. Empty means private LAN addresses only. Add public hostnames here if your model/image/search services live outside your LAN. |
+| `PROXY_ALLOWED_HOSTS` | *(empty)* | Comma-separated hosts or host:port targets, without schemes or paths. Empty allows private LAN addresses only. A nonempty list allows **only the listed hosts**, including local services. |
 | `PROXY_TIMEOUT_GET_MS` | `60000` | Timeout for GET requests through the integration proxy (model lists, web search). |
 | `PROXY_TIMEOUT_POST_MS` | `600000` | Timeout for POST requests through the integration proxy (chat streaming, image generation). Raise only if your image generator or a cold-start model takes even longer. |
 | `GC_MIN_BLOB_AGE_MS` | `3600000` (1h) | Age below which uploaded blobs are protected from garbage collection even without references. |
@@ -121,6 +121,16 @@ Integration requests pass through the RP backend, so service addresses must be r
 For image generation, configure a compatible image bridge separately. For web search, configure your SearXNG instance.
 
 If your services are on public hostnames (rather than private LAN IPs), add them to `PROXY_ALLOWED_HOSTS` in `.env`. The proxy refuses public hosts by default to prevent the server from being used as an open relay.
+
+For OpenRouter, set the AI profile's Base URL to `https://openrouter.ai/api` and enter your OpenRouter API key in that profile. RP appends `/v1` when requesting models or chat completions; a Base URL ending in `/api/v1` is also accepted.
+
+In the Compose stack's `.env`, explicitly allow OpenRouter and any local services you still use, for example (replace the LAN addresses with your own):
+
+```dotenv
+PROXY_ALLOWED_HOSTS=openrouter.ai,192.168.100.80,192.168.100.81:8040
+```
+
+This list replaces the default LAN policy; it does not add to it. The supplied Compose file passes the setting into the container. If you maintain your own Compose file or a Dockge stack, include `PROXY_ALLOWED_HOSTS: ${PROXY_ALLOWED_HOSTS:-}` under the `rp` service's `environment`. After editing `.env` or Compose, run `docker compose up -d rp` to recreate the container with the new environment; a simple restart does not apply these changes.
 
 ## User accounts and shared services
 
@@ -166,6 +176,7 @@ The integration proxy (`/llm-proxy`, `/searxng-proxy`, `/images-proxy`) requires
 
 - Private LAN addresses (`10.*`, `172.16-31.*`, `192.168.*`, `127.*`, link-local) are allowed by default.
 - Public hostnames and IPs are refused unless explicitly listed in `PROXY_ALLOWED_HOSTS`.
+- When `PROXY_ALLOWED_HOSTS` is nonempty, all destinations (including private LAN addresses) must be listed.
 - Redirects are not followed automatically; a single redirect hop is allowed only to another allowlisted target.
 
 Keep access to the application port restricted to your trusted network anyway. RP is not a hardened service against hostile traffic.

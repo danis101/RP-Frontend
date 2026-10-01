@@ -17,6 +17,10 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD jest wymagany}
       DATA_DIR: /data
       NODE_ENV: production
+      PROXY_ALLOWED_HOSTS: ${PROXY_ALLOWED_HOSTS:-}
+      PROXY_TIMEOUT_GET_MS: ${PROXY_TIMEOUT_GET_MS:-60000}
+      PROXY_TIMEOUT_POST_MS: ${PROXY_TIMEOUT_POST_MS:-600000}
+      GC_MIN_BLOB_AGE_MS: ${GC_MIN_BLOB_AGE_MS:-3600000}
     restart: unless-stopped
     healthcheck:
       test:
