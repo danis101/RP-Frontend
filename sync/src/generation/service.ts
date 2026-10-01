@@ -13,6 +13,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { createImageGenerator } from '../../../shared/llm/imageGen'
 import { ReasoningParser, readReasoning } from '../../../shared/llm/reasoning'
 import { modelOptions } from '../../../shared/llm/modelOptions'
+import { conversationSessionOptions } from '../../../shared/llm/session'
 import type { ImageInput, ImageToolCall } from '../../../shared/llm/imageTypes'
 import { runImage } from './imageWorkflow'
 import type { WorkflowProgress } from './runner'
@@ -87,7 +88,7 @@ export function startSummary(userId: string, conversationId: string, profileId: 
   const model = settings.summarizerModel?.trim() || profile?.model
   if (!profile?.baseUrl?.trim() || !model) throw new JobError('Brak skonfigurowanego modelu podsumowania.', 400)
   const baseUrl = profile.baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/, '')
-  const body: Record<string, unknown> = { model, messages, stream: true, ...modelOptions(model, profile.reasoningEffort) }
+  const body: Record<string, unknown> = { model, messages, stream: true, ...modelOptions(model, profile.reasoningEffort), ...conversationSessionOptions(baseUrl, conversationId, 'summary') }
   for (const [key, wireKey] of Object.entries({ temperature: 'temperature', topP: 'top_p', topK: 'top_k', frequencyPenalty: 'frequency_penalty', presencePenalty: 'presence_penalty' })) {
     if (typeof profile.sampler?.[key] === 'number') body[wireKey] = profile.sampler[key]
   }
@@ -156,7 +157,7 @@ function imageEnabled(userId: string): boolean {
 }
 export type ImageExecution = (signal: AbortSignal, report: (state: WorkflowProgress) => void, label?: string) => Promise<ImageToolCall>
 
-export function createImageExecution(userId: string, input: ImageInput, settings: any): { execute: ImageExecution; snapshot: unknown } {
+export function createImageExecution(userId: string, input: ImageInput, settings: any, conversationId?: string): { execute: ImageExecution; snapshot: unknown } {
   const profile = settings.aiProfiles?.find((p: any) => p.id === input.refinerProfileId)
   const refinerBody: Record<string, unknown> = { model: profile?.model, messages: input.refinerMessages, stream: false, ...modelOptions(profile?.model ?? '', profile?.reasoningEffort) }
   // Match the existing adapter: sampler from the refiner profile, no tools.
@@ -167,6 +168,7 @@ export function createImageExecution(userId: string, input: ImageInput, settings
   const baseUrl = typeof settings.imageGenBaseUrl === 'string' ? settings.imageGenBaseUrl : ''
   const responseFormat = settings.imageGenResponseFormat === 'b64_json' ? 'b64_json' : 'url'
   const refinerBase = typeof profile?.baseUrl === 'string' ? profile.baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/, '') : ''
+  Object.assign(refinerBody, conversationSessionOptions(refinerBase, conversationId, 'refiner'))
   const generator = createImageGenerator(() => null, async (url, init) => {
     if (typeof url !== 'string' || !url.startsWith('/images-proxy/')) throw new Error('Nieprawidłowy adres obrazu z mostka.')
     const signal = init?.signal ?? undefined

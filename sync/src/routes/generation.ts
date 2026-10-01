@@ -5,6 +5,7 @@ import { db } from '../db'
 import { generationRunner, generationStore, openModelResponse, createSearchWorkflow, createImageExecution, startSummary, type SearchSettings } from '../generation/service'
 import { validModelMessage } from '../../../shared/llm/messages'
 import { modelOptions } from '../../../shared/llm/modelOptions'
+import { conversationSessionOptions } from '../../../shared/llm/session'
 import { webSearchDeclaration } from '../../../shared/llm/webSearch'
 import { imageDeclaration, type ImageInput } from '../../../shared/llm/imageTypes'
 import { JobError, publicJob, type StartJob } from '../generation/store'
@@ -79,7 +80,7 @@ generationRoutes.post('/', async c => {
     }
     const payload: Record<string, unknown> = { model: profile?.model, messages: request.messages, stream: true, ...modelOptions(profile?.model ?? '', profile?.reasoningEffort) }
     if (image && image.prompt === undefined && settings?.imageGenEnabled !== true) throw new JobError('Generowanie obrazow jest wylaczone.', 400)
-    const imageExecution = image ? createImageExecution(userId, image, settings ?? {}) : undefined
+    const imageExecution = image ? createImageExecution(userId, image, settings ?? {}, request.conversationId) : undefined
     let searchSettings: SearchSettings | undefined
     if (request.webSearch) {
       if (settings.webSearchEnabled !== true) throw new JobError('Wyszukiwanie jest wylaczone w zapisanych ustawieniach.', 400)
@@ -103,6 +104,7 @@ generationRoutes.post('/', async c => {
     }
     if (typeof profile?.maxTokens === 'number' && Number.isFinite(profile.maxTokens) && profile.maxTokens > 0) payload.max_tokens = profile.maxTokens
     const baseUrl = typeof profile?.baseUrl === 'string' ? profile.baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/, '') : ''
+    Object.assign(payload, conversationSessionOptions(baseUrl, request.conversationId))
     const apiKey = typeof profile?.apiKey === 'string' ? profile.apiKey.trim() : ''
     const { webSearchApiKey: _secret, ...searchSnapshot } = searchSettings ?? {}
     const { job, created } = generationStore.start(userId, request, { baseUrl, body: payload, ...(searchSettings ? { search: searchSnapshot } : {}), ...(imageExecution ? { image: imageExecution.snapshot } : {}) })

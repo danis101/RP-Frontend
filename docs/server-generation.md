@@ -129,3 +129,21 @@ Addytywna migracja dodaje `workflow_json` do istniejącej tabeli zadań. Zawiera
 Testy obserwatora w `frontend/tests/generation-observer.test.cjs` uruchamiają rzeczywisty hook z kontrolowanym hostem efektów i siecią: reconnect, utrata POST, Stop, wyścigi odczytów i zmiana rozmowy. Nie zastępują testu Reacta w przeglądarce ani wdrożenia mobilnego.
 
 Lokalny test bez Dockera/Bun: `node --test sync/tests/generation.node.cjs` z katalogu projektu (Node 24, zależności frontendowe z TypeScript). Uruchamia właściwy kod store/runner na SQLite przez cienki adapter Node; nie zastępuje testu routingu Hono i runtime Bun.
+
+## Sesje OpenRoutera
+
+Dla Base URL z hostem `https://openrouter.ai` żądania czatu zawierają
+`session_id: rp:chat:<conversationId>`, oparty na istniejącym, zapisanym ID rozmowy.
+Otwarcie rozmowy ponownie, regeneracja odpowiedzi i kontynuacje po narzędziach
+zachowują tę samą sesję. Podsumowania i refiner mają osobne prefiksy `rp:summary:`
+i `rp:refiner:`, aby nie zmieniać routingu czatu. Inne API nie dostają tego pola.
+Nie wymaga to migracji danych ani nowych ustawień w UI.
+
+Identyfikator pomaga OpenRouterowi utrzymywać tego samego dostawcę i zwiększać
+szansę trafienia automatycznego cache; nie gwarantuje cache ani rabatu. Nadal
+obowiązują reguły modelu/dostawcy, ważność cache i zgodność początku promptu.
+Nie dodajemy `cache_control` ani nie zmieniamy kolejności wiadomości.
+Dokumentacja: https://openrouter.ai/docs/guides/best-practices/prompt-caching
+
+Test izolacji sesji i zgodności z innymi API: `node --test sync/tests/session.node.cjs`
+(Node 24).

@@ -5,6 +5,8 @@ export type { StreamCallbacks } from '../../../../shared/llm/types'
 export interface SendMessageParams {
   /** Gotowa lista wiadomości (z system promptem i injekcjami). */
   messages: OpenAIMessage[]
+  /** Persisted chat ID, used only by APIs with session routing support. */
+  conversationId?: string
   model?: string
   temperature?: number
   systemPrompt?: string

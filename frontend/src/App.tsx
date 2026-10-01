@@ -644,6 +644,7 @@ export default function App() {
       await adapter.streamMessage(
         {
           messages,
+          conversationId: activeConversation?.id,
           model: activeProfile?.model || undefined,
           temperature: activeProfile?.sampler.temperature,
           signal: controller.signal,
@@ -679,6 +680,7 @@ export default function App() {
       try {
         const result = await adapter.sendMessage({
           messages,
+          conversationId: activeConversation?.id,
           model: activeProfile?.model || undefined,
           temperature: activeProfile?.sampler.temperature,
           signal: controller.signal,

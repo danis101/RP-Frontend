@@ -4,6 +4,7 @@ import { getToken } from '../sync/client'
 import { ReasoningParser, readReasoning } from '../../../../shared/llm/reasoning'
 import { readCompletionStream } from '../../../../shared/llm/stream'
 import { modelOptions } from '../../../../shared/llm/modelOptions'
+import { conversationSessionOptions } from '../../../../shared/llm/session'
 
 export interface OpenAIConfig {
   baseUrl: string
@@ -126,6 +127,7 @@ export class OpenAIAdapter implements ApiAdapter {
       model,
       messages: params.messages as unknown as OpenAIMessage[],
       stream: false,
+      ...conversationSessionOptions(this.config.baseUrl, params.conversationId),
       ...this.samplerBody(),
       ...modelOptions(model, this.config.reasoningEffort),
     }
@@ -199,6 +201,7 @@ export class OpenAIAdapter implements ApiAdapter {
       model,
       messages: params.messages as unknown as OpenAIMessage[],
       stream: true,
+      ...conversationSessionOptions(this.config.baseUrl, params.conversationId),
       ...this.samplerBody(),
       ...modelOptions(model, this.config.reasoningEffort),
     }
