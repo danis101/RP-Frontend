@@ -239,6 +239,10 @@ export interface LongTermMemoryEntry {
 export interface Conversation {
   id: string
   characterId: string
+  /** Empty/missing title follows the character name. */
+  title?: string
+  /** Rename revision, including resets to the default name. */
+  titleUpdatedAt?: number
   messages: ChatMessage[]
   unread: number
   personaId?: string

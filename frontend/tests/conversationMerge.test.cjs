@@ -26,6 +26,29 @@ const conversation = (messages = [], extra = {}) => ({
   longTermMemory: [], lastSummarizedIndex: -1, ...extra,
 })
 
+test('a stale message save preserves a newer conversation name and both histories', () => {
+  const stale = conversation([message('local', 30)], { title: 'Old name', titleUpdatedAt: 10 })
+  const renamed = conversation([message('remote', 20)], { title: 'New scene', titleUpdatedAt: 40 })
+  for (const [local, remote] of [[stale, renamed], [renamed, stale]]) {
+    const merged = merge(local, remote)
+    assert.equal(merged.title, 'New scene')
+    assert.equal(merged.titleUpdatedAt, 40)
+    assert.equal(merged.id, 'conversation')
+    assert.equal(merged.characterId, 'character')
+    assert.deepEqual(merged.messages.map(m => m.id), ['remote', 'local'])
+  }
+})
+
+test('resetting to the character name is synchronized and cannot resurrect an old title', () => {
+  const renamed = conversation([], { title: 'Old scene', titleUpdatedAt: 40 })
+  const cleared = conversation([], { title: '', titleUpdatedAt: 50 })
+  for (const [local, remote] of [[renamed, cleared], [cleared, renamed]]) {
+    assert.equal(merge(local, remote).title, '')
+    assert.equal(merge(local, remote).titleUpdatedAt, 50)
+  }
+  assert.equal(merge(conversation(), renamed).title, 'Old scene')
+})
+
 test('keeps new messages from both devices, ordered by original creation time', () => {
   const local = conversation([message('shared'), message('local', 30)])
   const remote = conversation([message('remote', 20), message('shared')])

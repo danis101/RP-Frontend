@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MoreVertical, Trash2, Check, X as XIcon, UserRound, Palette, BookOpen, Eye, Database, RotateCcw, Wand2, ArrowLeft } from 'lucide-react'
+import { MoreVertical, Trash2, Check, X as XIcon, UserRound, Palette, BookOpen, Eye, Database, RotateCcw, Wand2, ArrowLeft, Pencil, Plus } from 'lucide-react'
 import type { CharacterCard, ChatMessage, Persona, StylePreset, Lorebook, MessageAttachment } from '../../types'
 import { useI18n } from '../../i18n'
 import { getContent } from '../../lib/messages'
@@ -10,11 +10,15 @@ import InputBar from './InputBar'
 import MessageActions from './MessageActions'
 import ConfirmDialog from './ConfirmDialog'
 import ImageStyleDialog from './ImageStyleDialog'
+import ConversationNameDialog from './ConversationNameDialog'
 import type { GenerationJob } from '../../services/sync/generation'
 import { useBlobSrc } from '../../lib/blobCache'
 
 interface ChatViewProps {
   conversationId: string
+  conversationTitle?: string
+  onRenameConversation: (title: string) => Promise<void>
+  onNewConversation: () => void
   onOpenConversations: () => void
   character: CharacterCard
   messages: ChatMessage[]
@@ -60,6 +64,9 @@ const SWIPE_THRESHOLD = 55
 
 export default function ChatView({
   conversationId,
+  conversationTitle,
+  onRenameConversation,
+  onNewConversation,
   onOpenConversations,
   character,
   messages,
@@ -100,6 +107,8 @@ export default function ChatView({
   const { t } = useI18n()
   const savedJobImage = useBlobSrc(generationResult?.toolCall?.type === 'image' ? generationResult.toolCall.imageBlobId : undefined)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  useEffect(() => { setRenameOpen(false); setMenuOpen(false) }, [conversationId])
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false)
   const [styleMenuOpen, setStyleMenuOpen] = useState(false)
   const [lorebookMenuOpen, setLorebookMenuOpen] = useState(false)
@@ -193,7 +202,7 @@ export default function ChatView({
         </button>
         <Avatar src={character.portraitBlobId ?? character.portrait} name={character.name} size="sm" />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[14.5px] font-semibold text-[#f2f2f4]">{character.name}</h1>
+          <h1 className="truncate text-[14.5px] font-semibold text-[#f2f2f4]">{conversationTitle?.trim() || character.name}</h1>
           <p className="mt-1 truncate text-[11.5px] text-[#75757f]">
             {statusLabel} · {character.role ?? ''}
             {activeImageStyleId && (
@@ -222,6 +231,14 @@ export default function ChatView({
 
           {menuOpen && (
             <div className="absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-edge bg-surface shadow-lg shadow-black/30">
+              <button onClick={() => { setMenuOpen(false); onNewConversation() }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-[#b8bdd0] hover:bg-surface-light">
+                <Plus size={14} /> {t('chatNewConversation')}
+              </button>
+              <button onClick={() => { setMenuOpen(false); setRenameOpen(true) }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-[#b8bdd0] hover:bg-surface-light">
+                <Pencil size={14} /> {t('chatRenameConversation')}
+              </button>
               <button
                 onClick={() => {
                   setMenuOpen(false)
@@ -578,6 +595,11 @@ export default function ChatView({
           onGenerateImage={onGenerateImage}
         />
       </div>
+
+      {renameOpen && (
+        <ConversationNameDialog key={conversationId} title={conversationTitle} characterName={character.name}
+          onSave={onRenameConversation} onClose={() => setRenameOpen(false)} />
+      )}
 
       {confirmDelete && (
         <ConfirmDialog

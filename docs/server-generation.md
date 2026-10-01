@@ -130,6 +130,16 @@ Testy obserwatora w `frontend/tests/generation-observer.test.cjs` uruchamiają r
 
 Lokalny test bez Dockera/Bun: `node --test sync/tests/generation.node.cjs` z katalogu projektu (Node 24, zależności frontendowe z TypeScript). Uruchamia właściwy kod store/runner na SQLite przez cienki adapter Node; nie zastępuje testu routingu Hono i runtime Bun.
 
+## Wiele rozmów i ich nazwy
+
+Rozmowy mogą mieć opcjonalne `title` i `titleUpdatedAt`. Nazwa jest metadanymi
+rozmowy; nie zmienia karty postaci, podstawień `{{char}}`, ID ani sesji API.
+Brak/pusta nazwa korzysta z bieżącej nazwy postaci. Scalanie wybiera nowszą rewizję
+nazwy (przy remisie serwer), także po resecie do pustego tytułu. Starszy zapis
+wiadomości nie przywraca poprzedniej nazwy. Dane nadal zapisuje istniejące API
+konwersacji, bez migracji bazy. Nowa rozmowa z tej samej karty otrzymuje nowe ID,
+wiadomość powitalną i pustą pamięć, bez kopiowania historii innych rozmów.
+
 ## Sesje OpenRoutera
 
 Dla Base URL z hostem `https://openrouter.ai` żądania czatu zawierają

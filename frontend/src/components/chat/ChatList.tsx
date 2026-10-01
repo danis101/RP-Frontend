@@ -62,7 +62,7 @@ export default function ChatList({
   const filtered = conversations
     .filter((conv) => {
       const character = getCharacter(conv.characterId)
-      return character ? character.name.toLowerCase().includes(query.toLowerCase()) : false
+      return character ? `${conv.title ?? ''} ${character.name}`.toLowerCase().includes(query.toLowerCase()) : false
     })
     .sort((a, b) => {
       const aTime = a.messages[a.messages.length - 1]?.timestamp ?? 0
@@ -129,7 +129,7 @@ export default function ChatList({
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between">
-                  <span className="truncate text-sm font-semibold text-[#f2f2f4]">{character.name}</span>
+                  <span className="truncate text-sm font-semibold text-[#f2f2f4]">{conv.title?.trim() || character.name}</span>
                   <span className="ml-2 shrink-0 text-[11px] text-[#75757f]">
                     {last
                       ? new Date(last.timestamp).toLocaleTimeString('pl-PL', {

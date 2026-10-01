@@ -1,4 +1,9 @@
 {
+  "chatNewConversation": "Nowa rozmowa",
+  "chatRenameConversation": "Zmień nazwę rozmowy",
+  "chatConversationName": "Nazwa rozmowy",
+  "chatRenameHint": "Puste pole przywraca nazwę postaci.",
+  "chatRenameError": "Nie udało się zapisać nazwy. Odśwież rozmowę i spróbuj ponownie.",
   "chatInsertQuotes": "Otocz cudzysłowami",
   "chatInsertAsterisks": "Otocz gwiazdkami",
   "chatInsertBackticks": "Otocz znakami `",

@@ -299,9 +299,9 @@ export default function App() {
     if (window.location.hash) window.location.hash = ''
   }
 
-  const startChatWith = async (characterId: string) => {
+  const startChatWith = async (characterId: string, forceNew = false) => {
     const card = characters.find((c) => c.id === characterId)
-    const existing = conversations.find((c) => c.characterId === characterId)
+    const existing = !forceNew && conversations.find((c) => c.characterId === characterId)
 
     if (existing) {
       setActiveId(existing.id)
@@ -352,6 +352,24 @@ export default function App() {
 
   const persistConversation = (conversation: Conversation) => {
     void persistConversationInternal(conversation, false)
+  }
+
+  const renameConversation = async (conversation: Conversation, title: string) => {
+    let updated: Conversation = {
+      ...conversation,
+      title: title.trim(),
+      titleUpdatedAt: Math.max(Date.now(), (conversation.titleUpdatedAt ?? 0) + 1, (conversation._serverUpdatedAt ?? 0) + 1),
+    }
+    let saved: Conversation
+    try {
+      saved = await conversationsApi.update(updated)
+    } catch (error) {
+      if (!(error instanceof ConflictError) || !error.current) throw error
+      updated = mergeConversations(updated, error.current as Conversation)
+      saved = await conversationsApi.update(updated)
+    }
+    setConversations(prev => prev.map(current => current.id === saved.id
+      ? mergeConversations(current, saved) : current))
   }
 
   const persistConversationInternal = async (
@@ -1423,6 +1441,9 @@ export default function App() {
             <div className={`${mobileListOpen ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 md:flex`}>
             <ChatView
               conversationId={activeConversation.id}
+              conversationTitle={activeConversation.title}
+              onRenameConversation={(title) => renameConversation(activeConversation, title)}
+              onNewConversation={() => { void startChatWith(activeConversation.characterId, true) }}
               onOpenConversations={() => setMobileListOpen(true)}
               character={activeCharacter}
               messages={activeConversation.messages}
@@ -1475,6 +1496,7 @@ export default function App() {
           onSave={handleSaveCard}
           onDelete={handleDeleteCard}
           onStartChat={startChatWith}
+          onNewChat={(characterId) => { void startChatWith(characterId, true) }}
         />
       ) : view === 'lorebooks' ? (
         <LorebooksView

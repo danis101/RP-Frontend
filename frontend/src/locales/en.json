@@ -1,4 +1,9 @@
 {
+  "chatNewConversation": "New conversation",
+  "chatRenameConversation": "Rename conversation",
+  "chatConversationName": "Conversation name",
+  "chatRenameHint": "Leave empty to use the character name.",
+  "chatRenameError": "Could not save the name. Refresh the conversation and try again.",
   "chatInsertQuotes": "Wrap in quotes",
   "chatInsertAsterisks": "Wrap in asterisks",
   "chatInsertBackticks": "Wrap in backticks",

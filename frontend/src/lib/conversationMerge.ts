@@ -46,6 +46,11 @@ export function mergeConversations(local: Conversation, remote: Conversation): C
 
   return {
     ...remote,
+    // A stale message save must not undo a rename from another device.
+    // Keep the revision even when the custom title was cleared.
+    ...((local.titleUpdatedAt ?? 0) > (remote.titleUpdatedAt ?? 0)
+      ? { title: local.title, titleUpdatedAt: local.titleUpdatedAt }
+      : { title: remote.title, titleUpdatedAt: remote.titleUpdatedAt }),
     messages: mergedMessages,
     _deletedMessageIds: [...deletedIds],
 

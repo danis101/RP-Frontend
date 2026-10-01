@@ -13,10 +13,11 @@ interface CardsViewProps {
   onSave: (card: CharacterCard) => Promise<CharacterCard | null>
   onDelete: (id: string) => void
   onStartChat: (characterId: string) => void
+  onNewChat: (characterId: string) => void
 }
 
 /** Widok kart postaci: lista, tworzenie, import (PNG/JSON), edycja, start czatu. */
-export default function CardsView({ characters, onSave, onDelete, onStartChat }: CardsViewProps) {
+export default function CardsView({ characters, onSave, onDelete, onStartChat, onNewChat }: CardsViewProps) {
   const { t } = useI18n()
   const [editing, setEditing] = useState<CharacterCard | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
@@ -118,6 +119,7 @@ export default function CardsView({ characters, onSave, onDelete, onStartChat }:
             tabIndex={0}
             onClick={() => onStartChat(card.id)}
             onKeyDown={(e) => {
+              if (e.target !== e.currentTarget) return
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 onStartChat(card.id)
@@ -145,12 +147,18 @@ export default function CardsView({ characters, onSave, onDelete, onStartChat }:
             {card.description && (
               <p className="line-clamp-2 text-[12px] leading-relaxed text-[#9a9aa3]">{card.description}</p>
             )}
-            <div className="flex w-full items-center justify-between">
+            <div className="flex w-full flex-wrap items-center justify-between gap-2">
               <span className="text-[10.5px] text-[#5a5f78]">
                 {card.characterBook?.entries?.length
                   ? `${card.characterBook.entries.length} ${t('cardsLorebook')}`
                   : t('cardsNoLorebook')}
               </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onNewChat(card.id) }}
+                className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-2 text-[11px] text-[#b8bdd0] hover:bg-surface-light hover:text-white"
+              >
+                <Plus size={14} /> {t('chatNewConversation')}
+              </button>
             </div>
           </div>
         ))}
