@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff, Link2, Loader2, Circle, Info, CheckCircle2, Plus, Trash2, ChevronDown } from 'lucide-react'
 import { useI18n } from '../../i18n'
 import { useSettings, defaultAiProfile } from '../../context/SettingsContext'
@@ -16,7 +16,7 @@ const statusColor: Record<ModelInfo['status'], string> = {
 /** Widok Modele AI: profile API, connect, lista modeli, sampler, vision. */
 export default function AIModelsView() {
   const { t } = useI18n()
-  const { settings, updateSettings, updateAiProfile, addAiProfile, deleteAiProfile, setActiveAiProfile } = useSettings()
+  const { settings, updateSettings, saveAiProfile, aiProfileDraft, setAiProfileDraft, deleteAiProfile, setActiveAiProfile } = useSettings()
   const [showKey, setShowKey] = useState(false)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [loading, setLoading] = useState(false)
@@ -24,13 +24,50 @@ export default function AIModelsView() {
   const [error, setError] = useState<string | null>(null)
   const [samplerOpen, setSamplerOpen] = useState(false)
   const [visionOpen, setVisionOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [savedNotice, setSavedNotice] = useState(false)
+  const connectionRevision = useRef(0)
 
-  const activeProfile = settings.aiProfiles.find((p) => p.id === settings.activeAiProfileId) ?? settings.aiProfiles[0]
+  const activeProfile = aiProfileDraft ?? settings.aiProfiles.find((p) => p.id === settings.activeAiProfileId) ?? settings.aiProfiles[0]
+  const original = settings.aiProfiles.find(profile => profile.id === activeProfile?.id)
+  const dirty = !!activeProfile && JSON.stringify(activeProfile) !== JSON.stringify(original)
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   if (!activeProfile) return null
 
   const updateActive = (partial: Partial<ApiProfile>) => {
-    updateAiProfile({ ...activeProfile, ...partial })
+    setAiProfileDraft({ ...activeProfile, ...partial })
+    setSavedNotice(false)
+    if (partial.baseUrl !== undefined || partial.apiKey !== undefined) resetConnection()
+  }
+
+  const resetConnection = () => {
+    connectionRevision.current++
+    setModels([]); setConnected(false); setError(null); setLoading(false)
+  }
+
+  const selectDraft = (profile: ApiProfile | null) => {
+    if (dirty && !window.confirm(t('aiDiscardDraftConfirm'))) return
+    setAiProfileDraft(profile)
+    setSavedNotice(false)
+    resetConnection()
+  }
+
+  const handleSave = async () => {
+    if (saving) return
+    setSaving(true); setError(null); setSavedNotice(false)
+    const profile = { ...activeProfile, name: activeProfile.name.trim() || activeProfile.model.trim() || t('aiUnnamedProfile') }
+    try {
+      await saveAiProfile(profile)
+      setAiProfileDraft(profile)
+      setSavedNotice(true)
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)) }
+    finally { setSaving(false) }
   }
 
   const updateSampler = (partial: Partial<ApiProfile['sampler']>) => {
@@ -38,6 +75,7 @@ export default function AIModelsView() {
   }
 
   const handleConnect = async () => {
+    const revision = ++connectionRevision.current
     setLoading(true)
     setError(null)
     setConnected(false)
@@ -49,18 +87,20 @@ export default function AIModelsView() {
         model: activeProfile.model,
       })
       const result = await adapter.listModels()
+      if (revision !== connectionRevision.current) return
       setModels(result.models)
       setConnected(true)
     } catch (err) {
+      if (revision !== connectionRevision.current) return
       setError(err instanceof Error ? err.message : String(err))
       setModels([])
     } finally {
-      setLoading(false)
+      if (revision === connectionRevision.current) setLoading(false)
     }
   }
 
   const handleAddProfile = () => {
-    addAiProfile(defaultAiProfile())
+    selectDraft({ ...defaultAiProfile(), name: '' })
   }
 
   return (
@@ -73,6 +113,7 @@ export default function AIModelsView() {
         </div>
         <button
           onClick={handleAddProfile}
+          disabled={saving}
           className="flex items-center gap-1.5 rounded-lg border border-edge px-3 py-2 text-[12.5px] text-[#b8bdd0] transition-colors hover:bg-surface-light"
         >
           <Plus size={14} /> {t('aiNewProfile')}
@@ -81,34 +122,30 @@ export default function AIModelsView() {
 
       {/* Treść z możliwością przewijania */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="max-w-3xl space-y-5 p-6">
+        <fieldset disabled={saving} className="max-w-3xl min-w-0 space-y-5 p-6">
           {/* Wybór profilu */}
           <div>
             <label className="mb-1 block text-[11px] font-medium text-[#8a8a94]">{t('aiProfile')}</label>
             <div className="flex items-center gap-2">
               <select
                 value={activeProfile.id}
-                onChange={(e) => setActiveAiProfile(e.target.value)}
+                onChange={(e) => selectDraft(settings.aiProfiles.find(profile => profile.id === e.target.value) ?? null)}
                 className="flex-1 rounded-lg border border-[#2a2a31] bg-surface px-3 py-2 text-[13px] text-[#e8e8eb] outline-none focus:border-accent"
               >
+                {!original && <option value={activeProfile.id}>{t('aiNewProfileDraft')}</option>}
                 {settings.aiProfiles.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name || 'Bez nazwy'} {p.model ? `(${p.model})` : ''}
                   </option>
                 ))}
               </select>
-              <button
-                onClick={() => {
-                  const name = window.prompt(t('aiProfileNamePrompt'), activeProfile.name)
-                  if (name !== null) updateActive({ name })
-                }}
-                className="rounded-lg border border-edge px-3 py-2 text-[12.5px] text-[#8a8a94] hover:bg-surface-light"
-              >
-                {t('aiRename')}
-              </button>
-              {settings.aiProfiles.length > 1 && (
+              {original && settings.aiProfiles.length > 1 && (
                 <button
-                  onClick={() => deleteAiProfile(activeProfile.id)}
+                  onClick={() => {
+                    if (!window.confirm(t('aiDeleteProfileConfirm'))) return
+                    deleteAiProfile(activeProfile.id)
+                    setAiProfileDraft(null); resetConnection(); setSavedNotice(false)
+                  }}
                   className="rounded-lg border border-edge p-2 text-[#8a8a94] hover:bg-[#2a1a1a] hover:text-[#e05b5b]"
                   title={t('aiDeleteProfile')}
                 >
@@ -116,6 +153,19 @@ export default function AIModelsView() {
                 </button>
               )}
             </div>
+          </div>
+
+          <SettingsField label={t('aiProfileName')} value={activeProfile.name}
+            onChange={(name) => updateActive({ name })} placeholder={t('aiProfileNamePlaceholder')} />
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-edge bg-surface p-3">
+            {original && <button disabled={dirty || settings.activeAiProfileId === activeProfile.id}
+              onClick={() => setActiveAiProfile(activeProfile.id)}
+              className="rounded-lg border border-edge px-3 py-2 text-[12px] text-[#b8bdd0] disabled:opacity-40">
+              {settings.activeAiProfileId === activeProfile.id ? t('aiDefaultProfile') : t('aiSetDefaultProfile')}
+            </button>}
+            <p role="status" className="w-full text-[11.5px] text-[#9a9aa3]">
+              {dirty ? t('aiProfileDraftHint') : savedNotice ? t('aiProfileSaved') : t('aiProfileEditHint')}
+            </p>
           </div>
 
           {/* Base URL + API key */}
@@ -194,7 +244,7 @@ export default function AIModelsView() {
 
             {activeProfile.model && (
               <p className="pt-1 text-[11.5px] text-[#8a8a94]">
-                {t('settingsActiveModel')}: <span className="font-medium text-[#b8bdd0]">{activeProfile.model}</span>
+                {t('aiSelectedModel')}: <span className="font-medium text-[#b8bdd0]">{activeProfile.model}</span>
               </p>
             )}
           </div>
@@ -449,7 +499,16 @@ export default function AIModelsView() {
               </label>
             </div>
           </div>
-        </div>
+        </fieldset>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-edge bg-surface px-4 py-3">
+        {error && <p role="alert" className="w-full text-[12px] text-red-400">{error}</p>}
+        {dirty && <button disabled={saving} onClick={() => selectDraft(original ?? null)}
+          className="rounded-lg border border-edge px-3 py-2 text-[12px] text-[#b8bdd0] disabled:opacity-40">{t('editorCancel')}</button>}
+        <button onClick={() => { void handleSave() }} disabled={!dirty || saving}
+          className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
+          {saving ? t('aiSavingProfile') : t('aiSaveProfile')}
+        </button>
       </div>
     </main>
   )

@@ -56,8 +56,10 @@ interface SettingsContextType {
   settings: AppSettings
   loading: boolean
   updateSettings: (partial: Partial<AppSettings>) => void
-  updateAiProfile: (profile: ApiProfile) => void
-  addAiProfile: (profile: ApiProfile) => void
+  saveAiProfile: (profile: ApiProfile) => Promise<void>
+  /** Transient editor state: never sent to the server or localStorage. */
+  aiProfileDraft: ApiProfile | null
+  setAiProfileDraft: (profile: ApiProfile | null) => void
   deleteAiProfile: (id: string) => void
   setActiveAiProfile: (id: string) => void
   setDefaultStyle: (id: string) => void
@@ -248,11 +250,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     () => loadFromLocalStorage(userId) ?? defaultSettings(),
   )
   const [loading, setLoading] = useState(true)
+  const [aiProfileDraft, setAiProfileDraft] = useState<ApiProfile | null>(null)
+  useEffect(() => { setAiProfileDraft(null) }, [userId])
 
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const remoteSaveRef = useRef<Promise<void>>(Promise.resolve())
+  const queueRemoteSave = (write: () => Promise<void>): Promise<void> => {
+    const pending = remoteSaveRef.current.catch(() => {}).then(write)
+    remoteSaveRef.current = pending
+    return pending
+  }
 
   const persistLocal = useCallback((next: AppSettings): AppSettings => {
     if (!userId) return next
@@ -268,7 +278,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null
-      void settingsApi.save(settingsRef.current).catch((err) => {
+      void queueRemoteSave(() => settingsApi.save(settingsRef.current)).catch((err) => {
         console.warn('Zapis ustawien na serwer nie powiodl sie:', err)
       })
     }, 500)
@@ -337,21 +347,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const updateAiProfile = (profile: ApiProfile) => {
-    setSettings((prev) => {
-      const next = persistLocal({
-        ...prev,
-        aiProfiles: prev.aiProfiles.map((p) => (p.id === profile.id ? profile : p)),
+  const saveAiProfile = async (profile: ApiProfile): Promise<void> => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    let previous = settingsRef.current
+    const replace = (profiles: ApiProfile[]) => profiles.some(p => p.id === profile.id)
+      ? profiles.map(p => p.id === profile.id ? profile : p)
+      : [...profiles, profile]
+    try {
+      await queueRemoteSave(() => {
+        previous = settingsRef.current
+        return settingsApi.save({ ...previous, aiProfiles: replace(previous.aiProfiles) })
       })
-      scheduleSave()
-      return next
-    })
-  }
-
-  const addAiProfile = (profile: ApiProfile) => {
+    } catch (error) {
+      scheduleSave() // Preserve unrelated settings whose pending save was cancelled.
+      throw error
+    }
     setSettings((prev) => {
-      const next = persistLocal({ ...prev, aiProfiles: [...prev.aiProfiles, profile] })
-      scheduleSave()
+      const next = persistLocal({ ...prev, aiProfiles: replace(prev.aiProfiles) })
+      settingsRef.current = next
+      if (prev !== previous) scheduleSave()
       return next
     })
   }
@@ -396,8 +413,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         settings,
         loading,
         updateSettings,
-        updateAiProfile,
-        addAiProfile,
+        saveAiProfile,
+        aiProfileDraft,
+        setAiProfileDraft,
         deleteAiProfile,
         setActiveAiProfile,
         setDefaultStyle,
@@ -418,4 +436,3 @@ export function useSettings(): SettingsContextType {
 }
 
 export { defaultAiProfile }
-

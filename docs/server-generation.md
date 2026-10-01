@@ -132,6 +132,17 @@ Lokalny test bez Dockera/Bun: `node --test sync/tests/generation.node.cjs` z kat
 
 ## Wiele rozmów i ich nazwy
 
+Profile w „Modele AI” edytuje się jako szkic przechowywany w pamięci kontekstu
+ustawień. Klikanie modeli, test połączenia i „Nowy profil” nie zmieniają zapisanych
+profili. „Zapisz profil” wysyła ustawienia na serwer; dopiero po sukcesie profil
+trafia do listy/cache. Błąd zachowuje szkic do ponowienia. Przeglądanie profilu nie
+zmienia globalnego wyboru — służy do tego osobne „Ustaw jako domyślny”. Szkic
+przetrwa zmianę widoku, ale nie przeładowanie strony ani wylogowanie. Wybór innego
+profilu/nowego szkicu wymaga potwierdzenia odrzucenia niezapisanych zmian.
+Jawne zapisy profilu i automatyczne zapisy pozostałych ustawień są wykonywane
+kolejno, aby wcześniejszy zapis nie nadpisał późniejszego. Istniejące profile
+nie są automatycznie usuwane ani deduplikowane.
+
 Rozmowy mogą mieć opcjonalne `title` i `titleUpdatedAt`. Nazwa jest metadanymi
 rozmowy; nie zmienia karty postaci, podstawień `{{char}}`, ID ani sesji API.
 Brak/pusta nazwa korzysta z bieżącej nazwy postaci. Scalanie wybiera nowszą rewizję
