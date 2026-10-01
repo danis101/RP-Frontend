@@ -140,6 +140,16 @@ wiadomości nie przywraca poprzedniej nazwy. Dane nadal zapisuje istniejące API
 konwersacji, bez migracji bazy. Nowa rozmowa z tej samej karty otrzymuje nowe ID,
 wiadomość powitalną i pustą pamięć, bez kopiowania historii innych rozmów.
 
+Menu rozmowy pozwala też wybrać zapisany profil AI. `aiProfileId` wskazuje cały
+profil (API, model, klucz, sampler, reasoning i limity), a `aiProfileUpdatedAt`
+chroni wybór podczas scalania ze starszymi zapisami. Null/brak lub usunięty profil
+korzysta z aktualnego globalnego `activeAiProfileId` (potem pierwszego profilu).
+Zmiana nie modyfikuje ustawień globalnych ani innych rozmów. Powrót do domyślnego
+jest zapisywany jako null z nową rewizją. Wybór jest zablokowany podczas generacji.
+Żądania serwerowe otrzymują ID wybranego profilu jak dotychczas; serwer odczytuje
+jego zapisane parametry. Dedykowany profil refinera i jawny model summarizera
+nadal mają własne ustawienia. Nie jest potrzebna migracja istniejących rozmów.
+
 ## Sesje OpenRoutera
 
 Dla Base URL z hostem `https://openrouter.ai` żądania czatu zawierają

@@ -11,12 +11,13 @@ after(() => rmSync(output, { recursive: true, force: true }))
 writeFileSync(path.join(output, 'package.json'), '{"type":"commonjs"}')
 execFileSync(process.execPath, [
   require.resolve('typescript/bin/tsc'),
-  'src/lib/conversationMerge.ts', 'src/lib/messages.ts',
+  'src/lib/conversationMerge.ts', 'src/lib/messages.ts', 'src/lib/conversationProfile.ts',
   '--module', 'commonjs', '--target', 'ES2020', '--strict', '--skipLibCheck',
   '--rootDir', '..', '--outDir', output,
 ], { cwd: path.join(__dirname, '..'), stdio: 'pipe' })
 const { mergeConversations: merge } = require(path.join(output, 'frontend/src/lib/conversationMerge.js'))
 const { updateMessage } = require(path.join(output, 'frontend/src/lib/messages.js'))
+const { resolveConversationProfile } = require(path.join(output, 'frontend/src/lib/conversationProfile.js'))
 
 const message = (id, timestamp = 10, extra = {}) => ({
   id, role: 'assistant', variants: [{ content: id }], selectedVariant: 0, timestamp, ...extra,
@@ -24,6 +25,36 @@ const message = (id, timestamp = 10, extra = {}) => ({
 const conversation = (messages = [], extra = {}) => ({
   id: 'conversation', characterId: 'character', messages, unread: 0,
   longTermMemory: [], lastSummarizedIndex: -1, ...extra,
+})
+
+test('conversation override selects the complete saved API profile without changing global defaults', () => {
+  const profiles = [
+    { id: 'default', model: 'model-a', baseUrl: 'https://a.test', sampler: { temperature: 0.7 } },
+    { id: 'other', model: 'model-b', baseUrl: 'https://b.test', sampler: { temperature: 1.2 }, reasoningEffort: 'none' },
+  ]
+  assert.equal(resolveConversationProfile(profiles, 'default', 'other'), profiles[1])
+  assert.equal(resolveConversationProfile(profiles, 'default', null), profiles[0])
+  assert.equal(resolveConversationProfile(profiles, 'other', null), profiles[1])
+  assert.equal(resolveConversationProfile(profiles, 'other'), profiles[1])
+  assert.equal(resolveConversationProfile(profiles, 'default', 'deleted'), profiles[0])
+  assert.equal(resolveConversationProfile(profiles, 'deleted', 'deleted'), profiles[0])
+  assert.equal(resolveConversationProfile([], 'deleted'), undefined)
+})
+
+test('newer model choice survives stale saves; resetting to default is also synchronized', () => {
+  const stale = conversation([message('local', 30)], { aiProfileId: 'old', aiProfileUpdatedAt: 10 })
+  const selected = conversation([message('remote', 20)], { aiProfileId: 'new', aiProfileUpdatedAt: 40 })
+  for (const [local, remote] of [[stale, selected], [selected, stale]]) {
+    const merged = merge(local, remote)
+    assert.equal(merged.aiProfileId, 'new')
+    assert.equal(merged.aiProfileUpdatedAt, 40)
+    assert.deepEqual(merged.messages.map(m => m.id), ['remote', 'local'])
+  }
+  const reset = conversation([], { aiProfileId: null, aiProfileUpdatedAt: 50 })
+  for (const [local, remote] of [[selected, reset], [reset, selected]]) {
+    assert.equal(merge(local, remote).aiProfileId, null)
+    assert.equal(merge(local, remote).aiProfileUpdatedAt, 50)
+  }
 })
 
 test('a stale message save preserves a newer conversation name and both histories', () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MoreVertical, Trash2, Check, X as XIcon, UserRound, Palette, BookOpen, Eye, Database, RotateCcw, Wand2, ArrowLeft, Pencil, Plus } from 'lucide-react'
-import type { CharacterCard, ChatMessage, Persona, StylePreset, Lorebook, MessageAttachment } from '../../types'
+import type { CharacterCard, ChatMessage, Persona, StylePreset, Lorebook, MessageAttachment, ApiProfile } from '../../types'
 import { useI18n } from '../../i18n'
 import { getContent } from '../../lib/messages'
 import type { TokenContext } from '../../lib/tokens'
@@ -17,6 +17,10 @@ import { useBlobSrc } from '../../lib/blobCache'
 interface ChatViewProps {
   conversationId: string
   conversationTitle?: string
+  availableAiProfiles: ApiProfile[]
+  conversationAiProfileId?: string | null
+  effectiveAiProfileId?: string
+  onPickAiProfile: (profileId: string | null) => Promise<void>
   onRenameConversation: (title: string) => Promise<void>
   onNewConversation: () => void
   onOpenConversations: () => void
@@ -65,6 +69,10 @@ const SWIPE_THRESHOLD = 55
 export default function ChatView({
   conversationId,
   conversationTitle,
+  availableAiProfiles,
+  conversationAiProfileId,
+  effectiveAiProfileId,
+  onPickAiProfile,
   onRenameConversation,
   onNewConversation,
   onOpenConversations,
@@ -108,6 +116,9 @@ export default function ChatView({
   const savedJobImage = useBlobSrc(generationResult?.toolCall?.type === 'image' ? generationResult.toolCall.imageBlobId : undefined)
   const [menuOpen, setMenuOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  useEffect(() => { setProfileError('') }, [conversationId, conversationAiProfileId])
   useEffect(() => { setRenameOpen(false); setMenuOpen(false) }, [conversationId])
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false)
   const [styleMenuOpen, setStyleMenuOpen] = useState(false)
@@ -231,6 +242,32 @@ export default function ChatView({
 
           {menuOpen && (
             <div className="absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-edge bg-surface shadow-lg shadow-black/30">
+              <div className="border-b border-edge px-3 py-3">
+                <label className="block text-[12px] text-[#b8bdd0]">
+                  {t('chatConversationModel')}
+                  <select
+                    value={availableAiProfiles.some(profile => profile.id === conversationAiProfileId) ? conversationAiProfileId! : ''}
+                    disabled={isTyping || profileSaving}
+                    onChange={async event => {
+                      const id = event.target.value || null
+                      setProfileSaving(true)
+                      setProfileError('')
+                      try { await onPickAiProfile(id) }
+                      catch { setProfileError(t('chatModelSaveError')) }
+                      finally { setProfileSaving(false) }
+                    }}
+                    className="mt-2 w-full rounded-lg border border-edge bg-surface-dark px-2 py-2 text-[12px] text-[#f2f2f4] disabled:opacity-50">
+                    <option value="">{t('chatDefaultModel')}</option>
+                    {availableAiProfiles.map(profile => <option key={profile.id} value={profile.id}>
+                      {profile.name}{profile.model ? ` · ${profile.model}` : ''}
+                    </option>)}
+                  </select>
+                </label>
+                <p className="mt-1 break-words text-[11px] text-[#8a8a94]">
+                  {availableAiProfiles.find(profile => profile.id === effectiveAiProfileId)?.model || t('chatNoModelSelected')}
+                </p>
+                {profileError && <p role="alert" className="mt-1 text-[11px] text-red-400">{profileError}</p>}
+              </div>
               <button onClick={() => { setMenuOpen(false); onNewConversation() }}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-[#b8bdd0] hover:bg-surface-light">
                 <Plus size={14} /> {t('chatNewConversation')}

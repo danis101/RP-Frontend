@@ -243,6 +243,9 @@ export interface Conversation {
   title?: string
   /** Rename revision, including resets to the default name. */
   titleUpdatedAt?: number
+  /** Null/missing follows the global default AI profile. */
+  aiProfileId?: string | null
+  aiProfileUpdatedAt?: number
   messages: ChatMessage[]
   unread: number
   personaId?: string

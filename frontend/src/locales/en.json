@@ -1,4 +1,8 @@
 {
+  "chatConversationModel": "Conversation model",
+  "chatDefaultModel": "Default from settings",
+  "chatModelSaveError": "Could not save the model. Try again.",
+  "chatNoModelSelected": "No model selected",
   "chatNewConversation": "New conversation",
   "chatRenameConversation": "Rename conversation",
   "chatConversationName": "Conversation name",

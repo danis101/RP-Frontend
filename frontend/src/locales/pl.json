@@ -1,4 +1,8 @@
 {
+  "chatConversationModel": "Model rozmowy",
+  "chatDefaultModel": "Domyślny z ustawień",
+  "chatModelSaveError": "Nie udało się zapisać modelu. Spróbuj ponownie.",
+  "chatNoModelSelected": "Brak wybranego modelu",
   "chatNewConversation": "Nowa rozmowa",
   "chatRenameConversation": "Zmień nazwę rozmowy",
   "chatConversationName": "Nazwa rozmowy",

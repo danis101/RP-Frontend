@@ -29,6 +29,7 @@ import { useGenerationJob } from './hooks/useGenerationJob'
 import { isGenerationActive, type StartGeneration } from './services/sync/generation'
 import { getBlobAsDataUrl } from './lib/blobCache'
 import { mergeConversations } from './lib/conversationMerge'
+import { resolveConversationProfile } from './lib/conversationProfile'
 import { prepareChatMessages } from './lib/chatCompatibility'
 import { buildSystemPrompt } from './lib/prompt'
 import { buildStyledSystemPrompt, getStyledChatInjections } from './lib/style'
@@ -117,8 +118,8 @@ export default function App() {
   const activeIdRef = useRef<string | null>(null)
   activeIdRef.current = activeId
 
-  const activeProfile =
-    settings.aiProfiles.find((p) => p.id === settings.activeAiProfileId) ?? settings.aiProfiles[0]
+  const activeConversation = conversations.find((c) => c.id === activeId)
+  const activeProfile = resolveConversationProfile(settings.aiProfiles, settings.activeAiProfileId, activeConversation?.aiProfileId)
 
   const adapter: ApiAdapter = useMemo(() => {
     if (activeProfile?.baseUrl.trim()) {
@@ -328,7 +329,6 @@ export default function App() {
     setMobileListOpen(false)
   }
 
-  const activeConversation = conversations.find((c) => c.id === activeId)
   const serverGeneration = useGenerationJob(ready ? activeId : null, user?.id, (remote) => {
     setConversations(prev => prev.map(local => local.id === remote.id ? mergeConversations(local, remote) : local))
   })
@@ -355,11 +355,23 @@ export default function App() {
   }
 
   const renameConversation = async (conversation: Conversation, title: string) => {
-    let updated: Conversation = {
+    await saveConversationMetadata({
       ...conversation,
       title: title.trim(),
       titleUpdatedAt: Math.max(Date.now(), (conversation.titleUpdatedAt ?? 0) + 1, (conversation._serverUpdatedAt ?? 0) + 1),
-    }
+    })
+  }
+
+  const pickConversationProfile = async (profileId: string | null) => {
+    if (!activeConversation || (profileId && !settings.aiProfiles.some(profile => profile.id === profileId))) return
+    await saveConversationMetadata({
+      ...activeConversation,
+      aiProfileId: profileId,
+      aiProfileUpdatedAt: Math.max(Date.now(), (activeConversation.aiProfileUpdatedAt ?? 0) + 1, (activeConversation._serverUpdatedAt ?? 0) + 1),
+    })
+  }
+
+  const saveConversationMetadata = async (updated: Conversation) => {
     let saved: Conversation
     try {
       saved = await conversationsApi.update(updated)
@@ -1442,6 +1454,10 @@ export default function App() {
             <ChatView
               conversationId={activeConversation.id}
               conversationTitle={activeConversation.title}
+              availableAiProfiles={settings.aiProfiles}
+              conversationAiProfileId={activeConversation.aiProfileId}
+              effectiveAiProfileId={activeProfile?.id}
+              onPickAiProfile={pickConversationProfile}
               onRenameConversation={(title) => renameConversation(activeConversation, title)}
               onNewConversation={() => { void startChatWith(activeConversation.characterId, true) }}
               onOpenConversations={() => setMobileListOpen(true)}
